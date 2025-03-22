@@ -1,5 +1,7 @@
 #!/bin/zsh
 
+trap ' ' INT
+
 target=$1
 
 vared -p "Enter username or leave blank: " -c domainUser
