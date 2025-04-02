@@ -3,8 +3,7 @@
 trap ' ' INT
 
 target=$1
-if [[ ! $target =~ ^https?://[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+(:[0-9]+)?$ ]] or
-[[ ! $target =~ ^https?://([a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]\.)+[a-zA-Z]{2,}(:[0-9]+)?$ ]]; then
+if [[ ! $target =~ ^https?://[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+(:[0-9]+)?$ && ! $target =~ ^https?://([a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]\.)+[a-zA-Z]{2,}(:[0-9]+)?$ ]]; then
 echo "ERROR: Not a valid target.";
 exit 1;
 fi
