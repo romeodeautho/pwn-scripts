@@ -1,3 +1,5 @@
 #!/bin/zsh
 
-/usr/bin/find . -name "*.html" ! -name "*ffuf*" ! -path "*ffuf-output*" -exec /usr/bin/firefox {} \; 2>/dev/null
+/home/shyngys/Downloads/firefox/firefox
+/usr/bin/find . -name "*.html" ! -name "*ffuf*" ! -path "*ffuf-output*" ! -path "*scans*"\
+ -exec /home/shyngys/Downloads/firefox/firefox {} \; 2>/dev/null
