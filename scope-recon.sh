@@ -1,23 +1,69 @@
 #!/bin/zsh
 
-# setting up working directory for the script
-if [[ -z $1 ]]; then export workingDir="$(pwd)/"; else
-if [[ -d $1 ]]; then
-if [[ $1 =~ .*/$ ]]; then export workingDir=$1; else export workingDir="$1/"; fi
-else echo "Directory does not exist. Check the path."; exit 1
+while getopts ":d:p:ben" opt; do
+  case $OPTARG in
+   -*) echo "ERROR: Incorrect arguments."
+  exit 1;;
+  esac
+  case $opt in
+    d) dirArg=$OPTARG
+    ;;
+    p) if [ $OPTARG -gt 0 ] && [ $OPTARG -lt 65536 ]; then topPorts=$OPTARG;
+    else echo "ERROR: Invalid port range. Maximum amount of TCP ports are 65535.";
+    exit 1; fi
+    ;;
+    b) dnsBruteforceFlag='true'
+    ;;
+    e) extendedScansFlag='true'
+    ;;
+    n) nucleiScanFlag='true'
+    ;;
+    "?") echo "Invalid option: -$OPTARG. Use -h to get help." >&2
+    exit 1
+    ;;
+    ":") echo "Error: empty value for the argument -$OPTARG"
+    exit 1
+    ;;
+  esac
+done
+
+if [[ -z $dirArg ]]; then workingDir="$(pwd)/"; else
+ if [[ -d $dirArg ]]; then
+  if [[ $dirArg =~ .*/$ ]]; then workingDir=$dirArg;  
+  else workingDir="${dirArg}/"; 
+  fi
+ else echo "Directory does not exist. Check the path."; exit 1
+ fi
 fi
+
+if [ ! -z $dnsBruteforce ] && [ $dnsBruteforce = 'true' ]; then 
+echo "[*] DNS bruteforce: ON."; else 
+echo "[*] DNS bruteforce: OFF."
 fi
+
+if [ ! -z $extendedScans ] && [ $extendedScans = 'true' ]; 
+then echo "[*] Extended scans: ON."; 
+else echo "[*] Extended scans: OFF."; 
+fi
+
+if [ ! -z $topPorts ]; then
+echo "[*] Nmap will scan $topPorts ports.";
+fi
+
+echo "The scan is starting. You have 10 seconds to abort (Ctrl+C)."
+sleep 10
 
 trap ' ' INT
 
 # analyze scope list and extract root domain names
 if [[ ! -f ${workingDir}scope.txt ]];
- then echo "scope.txt not found in the program directory"; exit 1;
+     then echo "scope.txt not found in the program directory"; exit 1;
 fi
 grep '*' ${workingDir}scope.txt | sed 's/\*\.//g' > ${workingDir}root-domains.txt
 grep -v '*' ${workingDir}scope.txt | sed 's/\*\.//g' > ${workingDir}target-domains.txt
 cat ${workingDir}root-domains.txt >> ${workingDir}target-domains.txt
-sed -e 's/\./\\./g' -e 's/\*\\\./\(.*\\.\)?/' ${workingDir}scope.txt > ${workingDir}scope-regex.txt
+# make a regex version of scope list for BurpSuite
+sed -e 's/\./\\./g' -e 's/\*\\\./\(.*\\.\)?/' -re 's/(^[^\(])/^\1/' -e 's/$/$/'  ${workingDir}scope.txt > ${workingDir}scope-regex.txt
 
 # SUBFINDER: find subdomains for root domains
 cat ${workingDir}root-domains.txt | /home/shyngys/go/bin/subfinder >> ${workingDir}target-domains.txt
@@ -26,9 +72,8 @@ cat ${workingDir}root-domains.txt | /home/shyngys/go/bin/subfinder >> ${workingD
 export PDCP_API_KEY=`cat /home/shyngys/Documents/.chaos-token`
 
 # subdomain bruteforce
-vared -p "[*] Run subdomain bruteforce?[y]" -c subbrute
-if [ $subbrute = 'y' ]; then dnsx -nc -a -resp -v \
-  -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-20000.txt\
+subdomainBrute() {
+  dnsx -nc -a -resp -v -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-20000.txt\
     -d ${workingDir}root-domains.txt -rcode noerror | tee ${workingDir}dnsx-subs-brute-noerror.log;
   cat ${workingDir}dnsx-subs-brute-noerror.log | cut -d ' ' -f 1 > ${workingDir}dnsx-brute-subs-list.txt;
   cat ${workingDir}dnsx-brute-subs-list.txt | dnsx -nc -asn -recon -e axfr | tee ${workingDir}dnsx-brute-resolve.log;
@@ -50,6 +95,10 @@ if [ $subbrute = 'y' ]; then dnsx -nc -a -resp -v \
   if [[ $mergeBrutedSubs = 'y' ]]; then
   cat ${workingDir}pure-subs.txt ${workingDir}dnsx-brute-subs-list.txt | sort -u | anew -t target-domains.txt
   fi
+}
+
+if [ ! -z $dnsBruteforceFlag ] && [ $dnsBruteforceFlag = 'true' ]; then
+subdomainBrute;
 fi
 
 cat ${workingDir}root-domains.txt | while read line; do
@@ -83,8 +132,8 @@ dnsx -l ${workingDir}ips.txt -nc -ptr -resp | cut -d ' ' -f3 | tr -d '[]' | tee 
 
 # NMAP scan against the IP address list
 portscan() {
-    nmapOutputBasename=nmap-3000-ports-tcp-`date '+%d-%m-%Y-%H:%M'`
-    sudo /usr/bin/nmap -T4 -sS -sV --top-ports=3000 -vv -iL ips.txt -oA ${workingDir}$nmapOutputBasename
+    nmapOutputBasename=nmap-${topPorts}-ports-tcp-`date '+%d-%m-%Y-%H:%M'`
+    sudo /usr/bin/nmap -T4 -sS -sV --top-ports=${topPorts} -vv -iL ips.txt -oA ${workingDir}$nmapOutputBasename
     echo "[*] Creating html report from nmap scan..."
     /usr/bin/xsltproc $(ls -Art ${workingDir}*.xml | tail -n 1) -o ${workingDir}$nmapOutputBasename.html
     /home/shyngys/Downloads/firefox/firefox file://${workingDir}$nmapOutputBasename.html
@@ -92,15 +141,18 @@ portscan() {
 
 portscan
 
-# extract HTTP port numbers from nmap output for each host
+# extract HTTP port numbers from nmap output for each host (IP address)
 echo "[*] Analyzing nmap report. Generating url list for scanning..."
 [[ ! -d ${workingDir}http-ports-by-host ]] && mkdir ${workingDir}http-ports-by-host;\
- cat ${workingDir}ips.txt | while read line; do grep $line ${workingDir}$nmapOutputBasename.gnmap | grep Ports | awk '{for (i=4;i<=NF;i++) {split($i,a,"/");if (a[5] ~ /(ssl|)?http.*/) print a[1];}}' |\
+ cat ${workingDir}ips.txt | while read line; do grep $line ${workingDir}$nmapOutputBasename.gnmap |\
+  grep Ports | awk '{for (i=4;i<=NF;i++) {split($i,a,"/");if (a[5] ~ /(ssl|)?http.*/) print a[1];}}' |\
   tee ${workingDir}http-ports-by-host/$line-http-ports.txt; done
 
-# extract domain names for each host (for vhosts enumeration)
+# extract domain names associated with each IP address (for vhosts enumeration)
 #/usr/bin/python3 /home/shyngys/scripts/httpx-domains.py
-[[ ! -d ${workingDir}domains-by-host ]] && mkdir ${workingDir}domains-by-host; cat ${workingDir}ips.txt | while read -r line; do domains=`grep $line ${workingDir}dnsx-resolve.log | cut -d ' ' -f1`; echo "$domains" > ${workingDir}domains-by-host/$line-domains.txt;done
+[[ ! -d ${workingDir}domains-by-host ]] && mkdir ${workingDir}domains-by-host; cat ${workingDir}ips.txt |\
+ while read -r line; do domains=`grep $line ${workingDir}dnsx-resolve.log |\
+  cut -d ' ' -f1`; echo "$domains" > ${workingDir}domains-by-host/$line-domains.txt;done
 
 # generate list in format <DOMAIN:PORT> from 3 lists: IPs, domains, ports for further validating
 cat ${workingDir}ips.txt | while read line;\
@@ -138,14 +190,18 @@ if [ ! -z ${git_target} ]; then /usr/bin/gitdorks -target $git_target -nws 20 -e
  -token $githubToken -gd /home/shyngys/Tools/gitdorks_go/Dorks/smalldorks.txt | tee ${workingDir}gitdorks-$git_target.log;
 fi
 
-#NUCLEI : scan for common vulns
-vared -p "[*] Run nuclei?[y]" -c nucleiAnswer
-if [ $nucleiAnswer = 'y' ]; then /home/shyngys/.pdtm/go/bin/nuclei -tags cve,panel,exposure,osint,misconfig -l ${workingDir}ips.txt
+# NUCLEI: scan for common vulnerabilities
+nucleiScan() {
+    /home/shyngys/.pdtm/go/bin/nuclei -tags cve,panel,exposure,osint,misconfig -l ${workingDir}ips.txt
+}
+
+if [ ! -z $nucleiScanFlag ] && [ $nucleiScanFlag = 'true' ]; then
+nucleiScan;
 fi
 
+
 # NMAP rerun with all-ports config
-vared -p "[*] Rerun Nmap scanning against all TCP ports?[y]" -c nmapRerun
-if [ $nmapRerun = 'y' ]; then
+extendedNmap() {
     nmapOutputBasenameRepeat=nmap-all-ports-tcp-`date '+%d-%m-%Y-%H:%M'`
     sudo /usr/bin/nmap -T4 -sS -sV --script="(default or discovery) and not broadcast and not http*" -p- -vv -iL ${workingDir}ips.txt -oA ${workingDir}$nmapOutputBasenameRepeat
     sudo /usr/bin/nmap -T4 -sU -sV --top-ports=100 -vv -iL ${workingDir}ips.txt -oA ${workingDir}$nmapOutputBasenameRepeat-udp
@@ -155,7 +211,7 @@ if [ $nmapRerun = 'y' ]; then
     vared -p "[*] Open html reports?[y]" -c open_report
     if [ $open_report = 'y' ]; then /home/shyngys/Downloads/firefox/firefox file://${workingDir}$nmapOutputBasenameRepeat*.html; fi
 
-    # extract additional HTTP port numbers from nmap output for each host ip address
+    # extract additional HTTP port numbers from nmap output for each host (ip address)
     echo "[*] Analyzing nmap report. Generating url list for scanning..."
     [[ ! -d ${workingDir}http-ports-by-host ]] && mkdir ${workingDir}http-ports-by-host;\
     cat ${workingDir}ips.txt | while read line;\
@@ -167,18 +223,19 @@ if [ $nmapRerun = 'y' ]; then
     cat ${workingDir}ips.txt | while read line;\
     do cat ${workingDir}domains-by-host/$line-domains.txt | while read domain;\
       do cat ${workingDir}http-ports-by-host/$line-http-ports-extended.txt | while read port;\
-      do echo $domain:$port >> ${workingDir}target-domains-ports-extended-raw.txt;\ 
-      done;
+       do echo $domain:$port >> ${workingDir}target-domains-ports-extended-raw.txt;\ 
+       done;
       done;
     done
+    # creating URL list from DOMAIN:PORT list and prepending scheme
     cat ${workingDir}target-domains-ports-extended-raw.txt | while read host; do
-        if [[ $host =~ ':80$' ]]; then echo $host | sed -e 's/:80//' -e 's/^/http:\/\//' >> ${workingDir}target-domains-ports-extended.txt
-        elif [[ $host =~ ':443$' ]]; then echo $host | sed -e 's/:443//' -e 's/^/https:\/\//' >> ${workingDir}target-domains-ports-extended.txt
+        if [[ $host =~ ':80$' ]]; then echo $host | sed -e 's/:80$//' -e 's/^/http:\/\//' >> ${workingDir}target-domains-ports-extended.txt
+        elif [[ $host =~ ':443$' ]]; then echo $host | sed -e 's/:443$//' -e 's/^/https:\/\//' >> ${workingDir}target-domains-ports-extended.txt
         else echo $host | sed -e 's/^/http:\/\//' >> ${workingDir}target-domains-ports-extended.txt
         fi
     done
         
-    # HTTPX: validate and fingerprint http services from domain list
+    # HTTPX: validate and fingerprint http services from URL list
     echo "[*] Fingerprinting applications with httpx..."
     /home/shyngys/go/bin/httpx -l ${workingDir}target-domains-ports-extended.txt -td -server -efqdn -cname -cdn -asn -ip -sc -ss -nc -fr -o ${workingDir}httpx-extended.log -oa -srd ${workingDir}httpx-output-extended
     /home/shyngys/Downloads/firefox/firefox file://${workingDir}httpx-output-extended/screenshot/screenshot.html 
@@ -186,4 +243,8 @@ if [ $nmapRerun = 'y' ]; then
     # extract valid URLs from httpx log
     awk -F ' ' -e '$2 ~ /404]$/ {print $1}' ${workingDir}httpx-extended.log | grep -v -E '^https://.*:80$' | tee ${workingDir}httpx-404-urls-extended.txt
     cat ${workingDir}httpx-extended.log | cut -d ' ' -f 1 | grep -v -E '^https://.*:80$' | grep -v -E '^http://.*:443$' | tee ${workingDir}httpx-urls-extended.txt
+}
+
+if [ ! -z $extendedScansFlag ] && [ $extendedScansFlag = 'true' ]; then
+extendedNmap;
 fi
