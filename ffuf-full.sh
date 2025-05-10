@@ -23,13 +23,19 @@ else
 replayProxyOption="";
 fi
 
-echo "/usr/bin/ffuf -sf -v -ic -r -w /usr/share/seclists/Discovery/Web-Content/dsstorewordlist.txt -u $target/FUZZ $replayProxyOption -o ${outputDir}/ffuf-ds-$(date '+%d-%m-%Y-%s').html -of html;" | zsh
-echo "/usr/bin/ffuf -sf -v -ic -r -w /usr/share/seclists/Discovery/Web-Content/common.txt -u $target/FUZZ $replayProxyOption -o ${outputDir}/ffuf-common-$(date '+%d-%m-%Y-%s').html -of html;" | zsh
-echo "/usr/bin/ffuf -sf -v -ic -r -ac -w /usr/share/seclists/Discovery/Web-Content/trickest-robots-disallowed-wordlists/top-100.txt -u $target/FUZZ $replayProxyOption -o ${outputDir}/ffuf-common-$(date '+%d-%m-%Y-%s').html -of html;" | zsh
+echo "/usr/bin/ffuf -sf -v -ic -r -w /usr/share/seclists/Discovery/Web-Content/dsstorewordlist.txt \
+-u ${target}/FUZZ $replayProxyOption -o ${outputDir}/ffuf-ds-$(date '+%d-%m-%Y-%s').html -of html;" | zsh
+
+echo "/usr/bin/ffuf -sf -v -ic -r -w /usr/share/seclists/Discovery/Web-Content/common.txt \
+-u ${target}/FUZZ $replayProxyOption -o ${outputDir}/ffuf-common-$(date '+%d-%m-%Y-%s').html -of html;" | zsh
+
+echo "/usr/bin/ffuf -sf -v -ic -r -ac -w /usr/share/seclists/Discovery/Web-Content/trickest-robots-disallowed-wordlists/top-100.txt \
+-u ${target}/FUZZ $replayProxyOption -o ${outputDir}/ffuf-common-$(date '+%d-%m-%Y-%s').html -of html;" | zsh
 
 vared -p "[*] Run with directory list?[y]" -c useDirlist
 if [ $useDirlist = 'y' ]; then
-echo "/usr/bin/ffuf -sf -v -ic -r -w /usr/share/seclists/Discovery/Web-Content/raft-large-directories.txt -u $target/FUZZ/ $replayProxyOption -o ${outputDir}/ffuf-dirmed-`date '+%d-%m-%Y-%s'`.html -of html;" | zsh
+echo "/usr/bin/ffuf -sf -v -ic -r -w /usr/share/seclists/Discovery/Web-Content/raft-large-directories.txt \
+-u ${target}/FUZZ/ $replayProxyOption -o ${outputDir}/ffuf-dirmed-`date '+%d-%m-%Y-%s'`.html -of html;" | zsh
 fi
 
 vared -p "[*] Open reports in a browser?[y]" -c openReports

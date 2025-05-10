@@ -1,4 +1,5 @@
 #!/usr/bin/zsh
+#Nmap Targeted Full Tcp Port Scan
 [[ -z $1 ]] && echo "Usage: $0 <target>" && exit 1
 
 export t=$1

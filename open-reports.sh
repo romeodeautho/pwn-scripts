@@ -1,5 +1,5 @@
 #!/bin/zsh
 
-/home/shyngys/Downloads/firefox/firefox
-/usr/bin/find . -name "*.html" ! -name "*ffuf*" ! -path "*ffuf-output*" ! -path "*scans*"\
- -exec /home/shyngys/Downloads/firefox/firefox {} \; 2>/dev/null
+/usr/bin/chromium &; disown
+/usr/bin/find . -name "*.html" ! -path "*ffuf-output*" ! -path "*scans*" ! -path "*autorecon*" \
+-exec /usr/bin/chromium {} \; 2>/dev/null

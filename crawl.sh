@@ -3,40 +3,62 @@
 #if [ ! -z ${authCookie} ]; then
 #export cookieHeader="-H 'Cookie: ${authCookie}'"
 # crawl and filter for paths and GET parameter names
-while getopts ":h:" opt; do
-  case $opt in
-    H) header="$OPTARG"
-    ;;
-    \?) echo "Invalid option -$OPTARG" >&2
-    exit 1
-    ;;
-  esac
+HELP="This script runs spidering tools against a list of target URLs from httpx-valid-urls.txt file.
+    Usage: $0 [-h] [-H] [-C] [-t]
+    Options:
+      -h show help
+      -t target(s) for Wayback Machine search (domain name, IP address, file with a list of targets)
+    For authenticated spidering you can set custom cookies or headers:
+      -H HEADER
+      -C COOKIE"
 
-  case $OPTARG in
-    -*) echo "Option $opt needs a valid argument"
-    exit 1
-    ;;
-  esac
+while getopts ":H:C:t:h" opt; do
+    case $OPTARG in
+    -*) echo "ERROR: Incorrect arguments."
+    exit 1;;
+    esac
+    case $opt in
+      h) echo $HELP;
+      exit 1;
+      ;;
+      H) header="$OPTARG"
+      ;;
+      C) cookie="$OPTARG"
+      ;;
+      t) waybackTarget=$OPTARG
+      ;;
+      "?") echo "Invalid option: '$OPTARG'.\nTry '$0 -h' for usage information." >&2
+      exit 1
+      ;;
+      ":") echo "Error: empty value for the argument -$OPTARG"
+      exit 1
+      ;;
+    esac
 done
 
 if [[ ! -z ${header} ]]; then
-export cookieOption="-H 'Cookie: ${header}'";
+headerOption="-H '${header}'";
 fi
-${HOME}/go/bin/katana -list httpx-valid-urls.txt -f url,path,key -o katana.log $cookieOption  
+if [[ ! -z ${cookie} ]]; then
+cookieOption="-H 'Cookie: ${cookie}'";
+fi
 
-# sorting parameters, directories and full urls
-cat katana.log | grep -Ev '^/' | grep -Ev '^[a-z]+://' | sort -u | tee katana-params-get.txt
-grep -E '^/' katana.log | cut -d / -f2 | sed -e 's/^/\//' | grep -Ev '\.' | sort -u | tee katana-paths.txt
-grep -E '^https?://' katana.log | sort -u | tee katana-urls.txt
-cat katana-urls.txt | awk -F/ '{print $1"/"$2"/"$3"/"$4}' | sort -u > katana-urls-path-onelevel.txt
+# live spidering a target with Katana
+${HOME}/go/bin/katana -list httpx-valid-urls.txt -f url,path,key -o katana.log $headerOption $cookieOption 
+
+# extracting parameters, directories and full urls
+cat katana.log | /usr/bin/grep -Ev '^/' | /usr/bin/grep -Ev '^[a-z]+://' | sort -u | anew katana-params-get.txt
+/usr/bin/grep -E '^/' katana.log | cut -d / -f2 | sed -e 's/^/\//' | /usr/bin/grep -Ev '\.' | sort -u | anew katana-paths.txt
+/usr/bin/grep -E '^https?://' katana.log | sort -u | anew katana-urls.txt
+cat katana-urls.txt | awk -F/ '{print $1"/"$2"/"$3"/"$4}' | sort -u | anew katana-urls-path-onelevel.txt
 
 # find URLs and download HTTP responses from Wayback Machine
-vared -p "[*]Enter root domain for wayback machine search: " -c targetDomain
-waymore -i ${targetDomain} -oU waymore_urls_${targetDomain}.txt -oR waymore_responses_${targetDomain}
+vared -p "[*]Enter root domain for wayback machine search: " -c waybackTarget
+waymore -i $waybackTarget -oU waymore_urls_${waybackTarget}.txt -oR waymore_responses_${waybackTarget}
 
 #parse downloaded resposes and JS files for endpoints
-xnLinkFinder -i waymore_responses_${targetDomain} -sf ${targetDomain}
-jsluice urls ${file} | jq .url | sort -u | tr -d '"' | tee jsluice-urls.txt
+xnLinkFinder -i waymore_responses_${waybackTarget} -sf $waybackTarget
+#jsluice urls $file | jq .url | sort -u | tr -d '"' | tee jsluice-urls.txt
 
 # search for secrets
-jsluice secrets $file | tee jsluice-secrets.txt
+#jsluice secrets $file | tee jsluice-secrets.txt
