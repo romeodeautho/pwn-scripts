@@ -8,3 +8,6 @@ cat output.txt | sort -u | sed -e 's/^\.\{1,2\}//g' | grep -E '^/' | anew paths.
 
 jsluice secrets --unique all-scripts-export.txt | anew jsluice-secrets.txt
 jsluice urls --unique all-scripts-export.txt | anew jsluice-urls.txt
+
+# TODO: install getjswords
+#cat all-scripts-export.txt | python3 getjswords.py

@@ -1,4 +1,6 @@
 #!/bin/sh
+YELLOW="\e[1;33m"
+NC="\e[0m"
 
 # GUID/SUID binaries
 find / -type f -perm -4000 2>/dev/null;find / -type f -perm -6000 2>/dev/null
@@ -31,12 +33,13 @@ find / ! -path "*/proc/*" -iname "*database*" -type f 2>/dev/null
 # Search for documents
 for ext in $(echo ".xls .xls* .xltx .csv .od* .doc .doc* .pdf .pot .pot* .pp*");do echo -e "\nFile extension: " $ext; find / -name *$ext 2>/dev/null | grep -v "lib\|fonts\|share\|core" ;done
 
-# Search for SSH private keys
-grep -rnw "PRIVATE KEY" /* 2>/dev/null | grep ":1"
-
 # All hidden files and directories
 find /home -type f -name ".*" -exec ls -l {} \; 2>/dev/null
 find /home -type d -name ".*" -ls 2>/dev/null
 
 # Backup files:
 find / -type f -name "*bak" -o -name "*.old" -exec ls -l {} \; 2>/dev/null
+
+# Search for SSH private keys
+printf "${YELLOW}Searching for SSH private keys...${NC}"
+grep -rnw "PRIVATE KEY" /* 2>/dev/null | grep ":1"

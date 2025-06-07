@@ -3,12 +3,12 @@
 #if [ ! -z ${authCookie} ]; then
 #export cookieHeader="-H 'Cookie: ${authCookie}'"
 # crawl and filter for paths and GET parameter names
-HELP="This script runs spidering tools against a list of target URLs from httpx-valid-urls.txt file.
+HELP="This script runs spidering tools against a list of URLs from httpx-valid-urls.txt file.
     Usage: $0 [-h] [-H] [-C] [-t]
     Options:
       -h show help
-      -t target(s) for Wayback Machine search (domain name, IP address, file with a list of targets)
-    For authenticated spidering you can set custom cookies or headers:
+      -t target(s) for Wayback Machine search (domain name, IP address or a file with a list of targets)
+    [+]For authenticated spidering you can set custom cookies or headers:
       -H HEADER
       -C COOKIE"
 
@@ -44,21 +44,26 @@ cookieOption="-H 'Cookie: ${cookie}'";
 fi
 
 # live spidering a target with Katana
-${HOME}/go/bin/katana -list httpx-valid-urls.txt -f url,path,key -o katana.log $headerOption $cookieOption 
+echo "${HOME}/go/bin/katana -rl 10 -list httpx-valid-urls.txt -f url,path,key -o katana.log $headerOption $cookieOption" | zsh
 
-# extracting parameters, directories and full urls
+# extracting parameters, directories and full urls from kanata output
 cat katana.log | /usr/bin/grep -Ev '^/' | /usr/bin/grep -Ev '^[a-z]+://' | sort -u | anew katana-params-get.txt
 /usr/bin/grep -E '^/' katana.log | cut -d / -f2 | sed -e 's/^/\//' | /usr/bin/grep -Ev '\.' | sort -u | anew katana-paths.txt
 /usr/bin/grep -E '^https?://' katana.log | sort -u | anew katana-urls.txt
 cat katana-urls.txt | awk -F/ '{print $1"/"$2"/"$3"/"$4}' | sort -u | anew katana-urls-path-onelevel.txt
 
 # find URLs and download HTTP responses from Wayback Machine
-vared -p "[*]Enter root domain for wayback machine search: " -c waybackTarget
+#vared -p "[*]Enter root domain for wayback machine search: " -c waybackTarget
 waymore -i $waybackTarget -oU waymore_urls_${waybackTarget}.txt -oR waymore_responses_${waybackTarget}
 
-#parse downloaded resposes and JS files for endpoints
+#parse downloaded resposes and JS files for links
 xnLinkFinder -i waymore_responses_${waybackTarget} -sf $waybackTarget
 #jsluice urls $file | jq .url | sort -u | tr -d '"' | tee jsluice-urls.txt
 
 # search for secrets
 #jsluice secrets $file | tee jsluice-secrets.txt
+
+# creating custom wordlist from website content
+cat httpx-valid-urls.txt | while read url; do
+    cewl $url --header "Cookie: ${cookie}" -d 2 -m 4 --write cewl-wordlist.txt
+done
