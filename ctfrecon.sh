@@ -220,7 +220,7 @@ function nucleiRun() {
         "3") echo "nuclei $nucleiTarget -etags xss -stats -o $nucleiLogName" | zsh
         break
         ;;
-        "4") echo "uclei $nucleiTarget -etags wordpress,wp-plugin,wpscan,xss -stats -o $nucleiLogName" | zsh
+        "4") echo "nuclei $nucleiTarget -etags wordpress,wp-plugin,wpscan,xss -stats -o $nucleiLogName" | zsh
         break
         ;;
         "5") read -p "[*] Specify tags to include, comma separated: " tags_line
