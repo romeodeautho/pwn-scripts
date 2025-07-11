@@ -68,7 +68,7 @@ function subdomainBrute() {
     # select only subdomains with NOERROR response code and without a Resource Record
     grep -F -x -v -f ${dnsxOutputDir}dnsx-subs-bruted-resolved-to-a.txt ${dnsxOutputDir}dnsx-brute-subs-list.txt | tee ${dnsxOutputDir}dnsx-subs-bruted-no-rr.txt;
     
-    vared -p "[*] Run puredns for subdomain bruteforce? (can be very stressful for a network)[y]" -c purednsRun
+    vared -p "[*] Run puredns for subdomain bruteforce? (WARNING: can be extremely stressful for a network!)[y]" -c purednsRun
     if [ $purednsRun = 'y' ]; then
     wget https://raw.githubusercontent.com/trickest/resolvers/main/resolvers.txt;
     puredns bruteforce /usr/share/seclists/Discovery/DNS/combined_subdomains.txt\
@@ -87,17 +87,17 @@ function subdomainBrute() {
 function dnsxRun() {
     # DNSX: run DNS resolving on a domain list
     if ! [ -d ${dnsxOutputDir} ]; then mkdir ${dnsxOutputDir}; fi
-    cat ${workingDir}target-hostnames.txt | dnsx -nc -asn -recon -e axfr | anew ${dnsxOutputDir}dnsx-resolve.log
+    cat ${workingDir}target-hostnames.txt | dnsx -nc -asn -recon -e axfr | anew -q ${dnsxOutputDir}dnsx-resolve.log
     
     # extract NS server domains from dnsx log
-    cat ${dnsxOutputDir}dnsx-resolve.log | grep 'NS\|SOA' | cut -d ' ' -f 3 | tr -d '[]' | sort -u | anew ${workingDir}ns.txt
+    cat ${dnsxOutputDir}dnsx-resolve.log | grep 'NS\|SOA' | cut -d ' ' -f 3 | tr -d '[]' | sort -u | anew -q ${workingDir}ns.txt
 
     # extract IP addresses from dnsx.log
-    cat ${dnsxOutputDir}dnsx-resolve.log | grep '\[A\]' | cut -d ' ' -f3 | tr -d "[]" | sort -u | grep -v '127.0.0.1' | anew ${workingDir}ips.txt
+    cat ${dnsxOutputDir}dnsx-resolve.log | grep '\[A\]' | cut -d ' ' -f3 | tr -d "[]" | sort -u | grep -v '127.0.0.1' | anew -q ${workingDir}ips.txt
     
     # DNSX PTR resolve
     echo "[*] Resolving IP addresses to PTR records..."
-    dnsx -l ${workingDir}ips.txt -nc -ptr -resp | cut -d ' ' -f3 | tr -d '[]' | anew ${dnsxOutputDir}dnsx-ptr.txt
+    dnsx -l ${workingDir}ips.txt -nc -ptr -resp | cut -d ' ' -f3 | tr -d '[]' | anew -q ${dnsxOutputDir}dnsx-ptr.txt
 }
 
 function portscan() {
@@ -110,7 +110,9 @@ function portscan() {
     
     /usr/bin/xsltproc ${nmapOutputDir}$nmapOutputBasename.xml -o ${nmapOutputDir}$nmapOutputBasename.html
     
-    /home/shyngys/Downloads/firefox/firefox file://${nmapOutputDir}$nmapOutputBasename.html
+    /usr/bin/chromium &;
+    sleep 3
+    /usr/bin/chromium file://${nmapOutputDir}$nmapOutputBasename.html
     
     searchsploit --nmap ${nmapOutputDir}$nmapOutputBasename.xml | tee -a ${workingDir}searchsploit-tcp.log
 }
@@ -125,7 +127,7 @@ function extendedPortscan() {
     /usr/bin/xsltproc ${nmapOutputDir}$nmapOutputBasenameRepeat.xml -o ${nmapOutputDir}$nmapOutputBasenameRepeat.html
     /usr/bin/xsltproc ${nmapOutputDir}$nmapOutputBasenameRepeat-udp.xml -o ${nmapOutputDir}$nmapOutputBasenameRepeat-udp.html
     
-    /home/shyngys/Downloads/firefox/firefox file://${nmapOutputDir}${nmapOutputBasenameRepeat}*.html
+    /usr/bin/chromium file://${nmapOutputDir}${nmapOutputBasenameRepeat}*.html
     
     searchsploit --nmap ${nmapOutputDir}$nmapOutputBasenameRepeat.xml | tee -a ${workingDir}searchsploit-tcp-extended.log   
     searchsploit --nmap ${nmapOutputDir}$nmapOutputBasenameRepeat-udp.xml | tee -a ${workingDir}searchsploit-tcp-extended-udp.log
@@ -139,15 +141,15 @@ function parseNmapOutput() {
     # extract HTTP port numbers from nmap output for each host (ip address)
     [[ ! -d ${workingDir}http-ports-by-host ]] && mkdir ${workingDir}http-ports-by-host;\
     cat ${workingDir}ips.txt | while read line; do
-        grep $line ${nmapOutputDir}${1} |\
+        grep $line ${1} |\
         grep Ports | awk '{for (i=4;i<=NF;i++) {split($i,a,"/");if (a[5] ~ /(ssl|)?http.*/) print a[1];}}' |\
-        anew ${workingDir}http-ports-by-host/$line-http-ports.txt; done
+        anew -q ${workingDir}http-ports-by-host/$line-http-ports.txt; done
 
     # extract domain names associated with each IP address (for vhosts enumeration) and put them in separate files
     [[ ! -d ${workingDir}domains-by-host ]] && mkdir ${workingDir}domains-by-host; cat ${workingDir}ips.txt |\
     while read -r line; do 
         domains=`grep $line ${dnsxOutputDir}dnsx-resolve.log |\
-        cut -d ' ' -f1`; echo "${domains}" | anew ${workingDir}domains-by-host/$line-domains.txt;done
+        cut -d ' ' -f1`; echo "${domains}" | anew -q ${workingDir}domains-by-host/$line-domains.txt;done
 
     # generate list in format <HOSTNAME:PORT> from 3 lists: IPs, domains, ports for further validating
     cat ${workingDir}ips.txt | \
@@ -156,16 +158,16 @@ function parseNmapOutput() {
         while read domain; do 
             cat ${workingDir}http-ports-by-host/$line-http-ports.txt | \
             while read port; do 
-            echo $domain:$port | anew ${workingDir}target-domains-ports-raw.txt; 
+            echo $domain:$port | anew -q ${workingDir}target-domains-ports-raw.txt; 
             done; 
         done; 
     done
     
     # creating URL list from HOSTNAME:PORT list and prepending URL scheme
     cat ${workingDir}target-domains-ports-raw.txt | while read host; do
-        if [[ $host =~ ':80$' ]]; then echo $host | sed -e 's/:80//' -e 's/^/http:\/\//' | anew target-urls-for-probe.txt
-        elif [[ $host =~ ':443$' ]]; then echo $host | sed -e 's/:443//' -e 's/^/https:\/\//' | anew target-urls-for-probe.txt
-        else echo $host | sed -e 's/^/http:\/\//' | anew target-urls-for-probe.txt
+        if [[ $host =~ ':80$' ]]; then echo $host | sed -e 's/:80//' -e 's/^/http:\/\//' | anew -q target-urls-for-probe.txt
+        elif [[ $host =~ ':443$' ]]; then echo $host | sed -e 's/:443//' -e 's/^/https:\/\//' | anew -q target-urls-for-probe.txt
+        else echo $host | sed -e 's/^/http:\/\//' | anew -q target-urls-for-probe.txt
         fi
     done
 }
@@ -179,7 +181,7 @@ function httpProbe() {
     echo "[*] Fingerprinting applications with httpx..."
     /home/shyngys/go/bin/httpx -l ${workingDir}target-urls-for-probe.txt \
     -td -server -efqdn -cname -cdn -asn -ip -sc -ss -nc -fr -o ${workingDir}httpx.log -oa -srd ${workingDir}httpx-output
-    /home/shyngys/Downloads/firefox/firefox file://${workingDir}httpx-output/screenshot/screenshot.html
+    /usr/bin/chromium file://${workingDir}httpx-output/screenshot/screenshot.html
 
     # extract valid URLs from httpx log
     awk -F ' ' -e '$2 ~ /404]$/ {print $1}' ${workingDir}httpx.log | grep -v -E '^https://.*:80$' | anew ${workingDir}httpx-404-urls.txt
@@ -244,27 +246,27 @@ fi
 if ! [ -d ${nmapOutputDir} ]; then mkdir ${nmapOutputDir}; fi
 
 # extract first level domains from wildcard entries
-grep -E '\*\.' ${workingDir}scope.txt | sed 's/\*\.//g' | anew ${workingDir}root-domains.txt
-cat ${workingDir}root-domains.txt | anew ${workingDir}target-hostnames.txt 
+grep -E '\*\.' ${workingDir}scope.txt | sed 's/\*\.//g' | anew -q ${workingDir}root-domains.txt
+cat ${workingDir}root-domains.txt | anew -q ${workingDir}target-hostnames.txt 
 
 # extract non-wildcard domain entries without scheme
 cat ${workingDir}scope.txt | grep -v '*' | grep -Ev '^https?' | \
-grep -Ev '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]{1,2}$' | anew ${workingDir}target-hostnames.txt
+grep -Ev '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]{1,2}$' | anew -q ${workingDir}target-hostnames.txt
 
 # extract HTTP URLs
-cat ${workingDir}scope.txt | grep -Ev '\*\.' | grep -E '^https?://' | anew ${workingDir}target-urls-for-probe.txt
+cat ${workingDir}scope.txt | grep -Ev '\*\.' | grep -E '^https?://' | anew -q ${workingDir}target-urls-for-probe.txt
 
 # extract only IP addresses
-cat ${workingDir}scope.txt | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+[:/0-9]*$' | anew ${workingDir}ip-scope.txt
-cat ${workingDir}ip-scope.txt | anew ${workingDir}ips.txt
+cat ${workingDir}scope.txt | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+[:/0-9]*$' | anew -q ${workingDir}ip-scope.txt
+cat ${workingDir}ip-scope.txt | anew -q ${workingDir}ips.txt
 
-grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]{1,2}$' ${workingDir}scope.txt | anew ${workingDir}cidr-scope.txt
+grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]{1,2}$' ${workingDir}scope.txt | anew -q ${workingDir}cidr-scope.txt
 /usr/bin/python3 /home/shyngys/scripts/cidr_to_list_convert.py ${workingDir}cidr-scope.txt
-cat ${workingDir}ip_list.txt | anew ${workingDir}ips.txt
+cat ${workingDir}ip_list.txt | anew -q ${workingDir}ips.txt
 
 # make a regex version of scope list for BurpSuite
 sed -e 's/\./\\./g' -e 's/\*\\\./\(.*\\.\)?/' -re 's/(^[^\(])/^\1/' \
--e 's/$/\(:[0-9]+\)?$/'  ${workingDir}scope.txt | anew ${workingDir}scope-regex.txt
+-e 's/$/\(:[0-9]+\)?$/'  ${workingDir}scope.txt | anew -q ${workingDir}scope-regex.txt
 
 # passively enumerate subdomains for root domains
 if [[ -s ${workingDir}root-domains.txt ]]; then
@@ -288,26 +290,29 @@ if [[ -s ${workingDir}ips.txt ]]; then
     portscan
 fi
 
-if [[ -s ${nmapOutputBasename}.gnmap ]]; then
-    parseNmapOutput ${nmapOutputBasename}.gnmap
+# create list of URLs for http probes
+if [[ -s ${nmapOutputDir}${nmapOutputBasename}.gnmap ]]; then
+    parseNmapOutput ${nmapOutputDir}${nmapOutputBasename}.gnmap
 fi
 
+# run http probes against a target list
 if [[ -s ${workingDir}target-urls-for-probe.txt ]]; then
     httpProbe
 fi
 
 if [[ -s ${workingDir}target-hostnames.txt ]]; then
     echo "[*] Getting historical URLs from Web Archive..."
-    cat ${workingDir}target-hostnames.txt | gau -t 5 > ${workingDir}gau-output-alldomains.log
+    cat ${workingDir}target-hostnames.txt | gau -v -t 5 > ${workingDir}gau-output-alldomains.log
 fi
 
 if [ ! -z $nucleiScanFlag ] && [[ $nucleiScanFlag == 'true' ]]; then
 nucleiScan
 fi
 
+# rerun portscanning and http probes with all-ports config
 if [ ! -z $extendedScansFlag ] && [[ $extendedScansFlag == 'true' ]]; then
     nmapOutputBasenameRepeat=nmap-all-ports-tcp-`date '+%d-%m-%Y-%H:%M'`
     extendedPortscan
-    parseNmapOutput ${nmapOutputBasenameRepeat}.gnmap
+    parseNmapOutput ${nmapOutputDir}${nmapOutputBasenameRepeat}.gnmap
     httpProbe
 fi

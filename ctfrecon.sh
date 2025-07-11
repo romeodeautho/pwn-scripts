@@ -58,7 +58,7 @@ function portscan () {
     1) Simple TCP
     2) TCP -sV -sC
     3) TCP -p- -sC -sV -O
-    4) TCP --top-ports 4000 -sV -sC -O + UDP (100 ports)
+    4) TCP --top-ports ${topPorts} -sV -sC -O + UDP (100 ports)
     5) TCP -p- -sV --script=extended -O + UDP (100 ports)
     6) Skip
     " -c nmapType
@@ -147,8 +147,8 @@ function parseForPorts() {
 
 function generate_url_list {
     echo "Generating URL list for HTTPX..."
-    for port in $openPorts; echo "http://$1:${port}" | anew target-with-ports.txt;
-    for port in $openPorts; echo "https://$1:${port}" | anew target-with-ports.txt;
+    for port in $openPorts; echo "http://$1:${port}" | anew -q target-with-ports.txt;
+    for port in $openPorts; echo "https://$1:${port}" | anew -q target-with-ports.txt;
 }
 
 function httpxRun() {

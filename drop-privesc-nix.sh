@@ -42,7 +42,7 @@ if [[ $zipDrop == '1' ]]; then
     echo 'Press any key to run an http server and a netcat listener...'; read -k1 -s
     
     tmux split-window 
-    tmux send -t 1 'cd /home/shyngys/labs/HTB/Academy/linux-privesc; /bin/python3 -m http.server 9999' ENTER
+    tmux send -t 1 'cd /home/shyngys/linux_tools/privesc; /bin/python3 -m http.server 9999' ENTER
     tmux send -t 0 "/bin/nc -lvnp 10000 | tee /home/shyngys/linpeas-logs/privesc-${scanName}$(date '+%d-%m-%Y').log" ENTER
 else
     echo
@@ -69,6 +69,6 @@ else
     echo
     echo 'Press any key to run an http server and a netcat listener...'; read -k1 -s
     tmux split-window 
-    tmux send -t 1 'cd /home/shyngys/labs/HTB/Academy/linux-privesc; /bin/python3 -m http.server 9999' ENTER
+    tmux send -t 1 'cd /home/shyngys/linux_tools/privesc; /bin/python3 -m http.server 9999' ENTER
     tmux send -t 0 "/bin/nc -lvnp 10000 | tee /home/shyngys/linpeas-logs/privesc-${scanName}$(date '+%d-%m-%Y').log" ENTER
 fi

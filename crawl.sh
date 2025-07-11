@@ -44,7 +44,7 @@ cookieOption="-H 'Cookie: ${cookie}'";
 fi
 
 # live spidering a target with Katana
-echo "${HOME}/go/bin/katana -rl 10 -list httpx-valid-urls.txt -f url,path,key -o katana.log $headerOption $cookieOption" | zsh
+echo "${HOME}/go/bin/katana -rl 30 -list httpx-valid-urls.txt -f url,path,key -o katana.log $headerOption $cookieOption" | zsh
 
 # extracting parameters, directories and full urls from kanata output
 cat katana.log | /usr/bin/grep -Ev '^/' | /usr/bin/grep -Ev '^[a-z]+://' | sort -u | anew katana-params-get.txt

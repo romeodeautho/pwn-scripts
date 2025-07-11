@@ -26,7 +26,7 @@ for i in $(find / -name *.cnf -o -name *.conf -o -name "*config*" 2>/dev/null |\
 
 
 # Search for database files and scripts:
-for l in $(echo ".sql .sqlite .db .*db .db*");do echo -e "\nDB File extension: " $l; find / -name *$l 2>/dev/null | grep -Ev "^/doc|^/lib|^/snap|^/proc|^/sys|^/run|^/usr";done
+for l in $(echo ".sql .sqlite .db .*db .db*");do echo -e "\nDB File extension: " $l; find / -name *$l 2>/dev/null | grep -Ev "^/doc|^/lib|^/snap|^/proc|^/sys|^/run|^/usr|^/var/lib";done
 for l in $(echo ".py .pyc .pl .go .jar .c .sh");do echo -e "\nFile extension: " $l; find / -name *$l 2>/dev/null | grep -Ev "^/doc|^/lib|^/snap|^/proc|^/sys|^/run|^/usr|^/var/lib";done
 find / ! -path "*/proc/*" -iname "*database*" -type f 2>/dev/null
 
