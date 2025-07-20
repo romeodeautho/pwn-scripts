@@ -43,7 +43,7 @@ if [[ ! -z ${cookie} ]]; then
 cookieOption="-H 'Cookie: ${cookie}'";
 fi
 
-# live spidering a target with Katana
+# live spidering a target with Katana (include full URLs, URLs with path, GET parameter keys)
 echo "${HOME}/go/bin/katana -rl 30 -list httpx-valid-urls.txt -f url,path,key -o katana.log $headerOption $cookieOption" | zsh
 
 # extracting parameters, directories and full urls from kanata output
@@ -53,7 +53,6 @@ cat katana.log | /usr/bin/grep -Ev '^/' | /usr/bin/grep -Ev '^[a-z]+://' | sort 
 cat katana-urls.txt | awk -F/ '{print $1"/"$2"/"$3"/"$4}' | sort -u | anew katana-urls-path-onelevel.txt
 
 # find URLs and download HTTP responses from Wayback Machine
-#vared -p "[*]Enter root domain for wayback machine search: " -c waybackTarget
 waymore -i $waybackTarget -oU waymore_urls_${waybackTarget}.txt -oR waymore_responses_${waybackTarget}
 
 #parse downloaded resposes and JS files for links

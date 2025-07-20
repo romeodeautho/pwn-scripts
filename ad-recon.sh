@@ -74,11 +74,12 @@ function roasting() {
 printf "Domain: ${dnsDomainName}\n"
 printf "User: ${domainUser}\n"
 printf "Password: ${domainPassword}\n"
-[[ ! -n $useKerberos ]] && echo "Using Kerberos\n"
+#[[ ! -v $useKerberos ]] && echo "Using Kerberos\n"
+if [[ -v useKerberos ]]; then echo "Using Kerberos\n"; else echo "Using NTLM auth\n"; fi
 
-[[ ! -n $useKerberos ]] && [[ -z $dnsDomainName ]] && echo "ERROR: Domain name should be provided for Kerberos Authentication. Use -d <domain>." && exit 1
+[[ -v useKerberos ]] && [[ -z $dnsDomainName ]] && echo "ERROR: Domain name should be provided for Kerberos Authentication. Use -d <domain>." && exit 1
 [[ ! -z $domainUser ]] && ([[ ! -z $domainPassword ]] || [[ ! -z $hash ]]) && authenticatedRun='1'
-[[ ! -n $useKerberos ]] && [[ ! -z dnsDomainName ]] && kerberosAuth='1'
+[[ -v useKerberos ]] && [[ ! -z $dnsDomainName ]] && kerberosAuth='1'
 [[ -z $hash ]] && [[ ! -z $domainPassword ]] && pwAuth='1'
 [[ ! -z $hash ]] && [[ -z $domainPassword ]] && hashAuth='1'
 
@@ -101,7 +102,11 @@ else
     passwordParam='-p ""'
 fi
 
-trap ' ' INT
+# synchronize time with a DC for Kerberos
+echo "Trying to syncronize time with the Domain Controller"
+sudo rdate -n $target
+
+#trap ' ' INT
 
 echo "${YELLOW}[*] Running enum4linux...${NC}"
 if [[ -z $domainUser ]]; then

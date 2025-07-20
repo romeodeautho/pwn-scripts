@@ -95,6 +95,8 @@ function dnsxRun() {
     # extract IP addresses from dnsx.log
     cat ${dnsxOutputDir}dnsx-resolve.log | grep '\[A\]' | cut -d ' ' -f3 | tr -d "[]" | sort -u | grep -v '127.0.0.1' | anew -q ${workingDir}ips.txt
     
+    grep '\[A\]' ${dnsxOutputDir}dnsx-resolve.log | awk -F ' ' '{print $3,$1}' | sort -u >> ${dnsxOutputDir}basic-resolve-list.txt
+
     # DNSX PTR resolve
     echo "[*] Resolving IP addresses to PTR records..."
     dnsx -l ${workingDir}ips.txt -nc -ptr -resp | cut -d ' ' -f3 | tr -d '[]' | anew -q ${dnsxOutputDir}dnsx-ptr.txt
