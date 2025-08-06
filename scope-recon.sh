@@ -214,7 +214,6 @@ function githubDorks () {
     -token $githubToken -gd /home/shyngys/Tools/gitdorks_go/Dorks/medium_dorks.txt | tee ${workingDir}gitdorks-$git_target.log;
     fi
 }
-
 ##############################################################################################################
 ##########                                     END FUNCTIONS                                        ##########
 ##############################################################################################################

@@ -34,12 +34,12 @@ fi
 
 # recursive bruteforcing
 # sorting discovered hostnames by levels
-export sub_level=3
+export domain_level=3
 while true; do
-    dsieve -f ${sub_level} -if target-hostnames.txt -o target-hostnames-level-${sub_level}.txt
-    if [[ ! -s target-hostnames-level-${sub_level}.txt ]]; then break; fi
-    cat target-hostnames-level-${sub_level}.txt | dnsgen - > dnsgen-level-${sub_level}.txt
-    (( sub_level += 1 ))
+    dsieve -f ${domain_level} -if target-hostnames.txt -o target-hostnames-level-${domain_level}.txt
+    if [[ ! -s target-hostnames-level-${domain_level}.txt ]]; then break; fi
+    cat target-hostnames-level-${domain_level}.txt | dnsgen - > dnsgen-level-${domain_level}.txt
+    (( domain_level += 1 ))
 done
 
 
