@@ -1,14 +1,37 @@
 #!/bin/zsh
 
-HELP="This script runs Httpx tool to probe running http services. Needs a list of URLS (http:// or https://).
+HELP="This script runs httpx tool to probe running http services. Needs a list of URLS (http(s)://).
     Usage: $0 [-h] [-H] [-C] [-t]
     Options:
       -h show help
-      -t target(s) for Wayback Machine search (domain name, IP address, file with a list of targets)"
+      -p use proxychains"
+
+while getopts ":hp" opt; do
+  case $OPTARG in
+   -*) echo "ERROR: Incorrect arguments."
+  exit 1;;
+  esac
+  case $opt in
+    h) echo $HELP;
+    exit 1;
+    ;;
+    p) useProxychains='1';
+    ;;
+    "?") echo "Invalid option: '$OPTARG'.\nTry '$0 -h' for usage information." >&2
+    exit 1;;
+    ":") echo "Error: empty value for the argument -$OPTARG"
+    exit 1;;
+  esac
+done
 
 # HTTPX: validate and fingerprint http services from domain list
 echo "[*] Fingerprinting applications with httpx..."
-/home/shyngys/go/bin/httpx -l target-urls-for-probe.txt -td -server -efqdn -cname -cdn -asn -ip -sc -ss -nc -fr -o httpx.log -oa -srd httpx-output
+
+if [[ $useProxychains == '1' ]]; then
+proxychains4 /home/shyngys/go/bin/httpx -l target-urls-for-probe.txt -td -server -efqdn -cname -cdn -asn -ip -sc -ss -nc -fr -o httpx.log -oa -srd httpx-output;
+else
+/home/shyngys/go/bin/httpx -l target-urls-for-probe.txt -td -server -efqdn -cname -cdn -asn -ip -sc -ss -nc -fr -o httpx.log -oa -srd httpx-output;
+fi
 /usr/bin/chromium &
 sleep 4
 /usr/bin/chromium file://`pwd`/httpx-output/screenshot/screenshot.html

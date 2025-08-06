@@ -9,7 +9,7 @@ while getopts ":d:p:ben" opt; do
     d) dirOption=$OPTARG
     ;;
     p) if [ $OPTARG -gt 0 ] && [ $OPTARG -lt 65536 ]; then topPorts=$OPTARG;
-    else echo "ERROR: Invalid port range. Maximum amount of TCP ports to scan is 65535.";
+    else echo "ERROR: Invalid port range. Enter a number between 1 and 65535.";
     exit 1; fi
     ;;
     b) dnsBruteforceFlag='true'
@@ -95,7 +95,7 @@ function dnsxRun() {
     # extract IP addresses from dnsx.log
     cat ${dnsxOutputDir}dnsx-resolve.log | grep '\[A\]' | cut -d ' ' -f3 | tr -d "[]" | sort -u | grep -v '127.0.0.1' | anew -q ${workingDir}ips.txt
     
-    grep '\[A\]' ${dnsxOutputDir}dnsx-resolve.log | awk -F ' ' '{print $3,$1}' | sort -u >> ${dnsxOutputDir}basic-resolve-list.txt
+    grep '\[A\]' ${dnsxOutputDir}dnsx-resolve.log | awk -F '[' 'BEGIN {OFS = FS}  {print $3,"| ",$1,"| ",$4}' | tr -d '[]' | sort -u > ${dnsxOutputDir}basic-resolve-list.txt
 
     # DNSX PTR resolve
     echo "[*] Resolving IP addresses to PTR records..."
@@ -105,18 +105,23 @@ function dnsxRun() {
 function portscan() {
     if ! [ -d ${nmapOutputDir} ]; then mkdir ${nmapOutputDir}; fi
     if [[ -z {$topPorts} ]]; then topPorts='4000'; fi
-    nmapOutputBasename=nmap-${topPorts}-ports-tcp-`date '+%d-%m-%Y-%H:%M'`
+    nmapOutputBasename=nmap-${topPorts}-ports-tcp-$currdate
+    smapOutputBasename=smap-$currdate
     sudo /usr/bin/nmap -T4 -sS -sV --top-ports=${topPorts} --script=asn-query -vv -iL ips.txt -oA ${nmapOutputDir}$nmapOutputBasename
-    
-    echo "[*] Creating html report from nmap scan..."
+    smap -iL ips.txt -oA ${nmapOutputDir}$smapOutputBasename
+
+    echo "[*] Creating html report from nmap and smap scan logs..."
     
     /usr/bin/xsltproc ${nmapOutputDir}$nmapOutputBasename.xml -o ${nmapOutputDir}$nmapOutputBasename.html
-    
+    /usr/bin/xsltproc ${nmapOutputDir}$smapOutputBasename.xml -o ${nmapOutputDir}$smapOutputBasename.html
+
     /usr/bin/chromium &;
     sleep 3
     /usr/bin/chromium file://${nmapOutputDir}$nmapOutputBasename.html
+    /usr/bin/chromium file://${nmapOutputDir}$smapOutputBasename.html
     
     searchsploit --nmap ${nmapOutputDir}$nmapOutputBasename.xml | tee -a ${workingDir}searchsploit-tcp.log
+    searchsploit --nmap ${nmapOutputDir}$smapOutputBasename.xml | tee -a ${workingDir}searchsploit-smap.log
 }
 
 function extendedPortscan() {
@@ -139,19 +144,24 @@ function parseNmapOutput() {
     # FUNCTION NEEDS A GNMAP OUTPUT FILE AS AN ARGUMENT
     
     echo "[*] Analyzing nmap report. Generating url list for probing..."
+    
+    grep "Up$" ${1} | awk '{print $2}' > ${workingDir}ips-alive.txt
 
     # extract HTTP port numbers from nmap output for each host (ip address)
     [[ ! -d ${workingDir}http-ports-by-host ]] && mkdir ${workingDir}http-ports-by-host;\
     cat ${workingDir}ips.txt | while read line; do
         grep $line ${1} |\
-        grep Ports | awk '{for (i=4;i<=NF;i++) {split($i,a,"/");if (a[5] ~ /(ssl|)?http.*/) print a[1];}}' |\
+        grep Ports | awk '{for (i=4;i<=NF;i++) {split($i,a,"/");if (a[5] ~ /(ssl|)?http.*|tcpwrapped/) print a[1];}}' |\
         anew -q ${workingDir}http-ports-by-host/$line-http-ports.txt; done
 
     # extract domain names associated with each IP address (for vhosts enumeration) and put them in separate files
     [[ ! -d ${workingDir}domains-by-host ]] && mkdir ${workingDir}domains-by-host; cat ${workingDir}ips.txt |\
+    
+    # LOOKS LAME, NEED TO REFACTOR!!!
     while read -r line; do 
-        domains=`grep $line ${dnsxOutputDir}dnsx-resolve.log |\
-        cut -d ' ' -f1`; echo "${domains}" | anew -q ${workingDir}domains-by-host/$line-domains.txt;done
+        domains=`grep $line ${dnsxOutputDir}dnsx-resolve.log | cut -d ' ' -f1`;
+        if [[ ! -z ${domains} ]]; then echo "${domains}"; fi | anew -q ${workingDir}domains-by-host/$line-domains.txt;
+    done
 
     # generate list in format <HOSTNAME:PORT> from 3 lists: IPs, domains, ports for further validating
     cat ${workingDir}ips.txt | \
@@ -175,7 +185,8 @@ function parseNmapOutput() {
 }
 
 function nucleiScan() {
-    /home/shyngys/.pdtm/go/bin/nuclei -tags cve,panel,exposure,osint,misconfig -stats -o ${workingDir}nuclei-${currdate}.log -l ${workingDir}ips.txt
+#    /home/shyngys/.pdtm/go/bin/nuclei -tags panel,exposure,osint,misconfig -no-httpx -stats -o ${workingDir}nuclei-${currdate}.log -l ${workingDir}ips-alive.txt
+    /home/shyngys/.pdtm/go/bin/nuclei -t network -etags intrusive,c2,honeypot -no-httpx -stats -o ${workingDir}nuclei-${currdate}.log -l ${workingDir}ips-alive.txt
 }
 
 function httpProbe() {
@@ -204,9 +215,9 @@ function githubDorks () {
     fi
 }
 
-############################################################################################################
-########                                     END FUNCTIONS                                        ##########
-############################################################################################################
+##############################################################################################################
+##########                                     END FUNCTIONS                                        ##########
+##############################################################################################################
 
 # setting up a working directory for the script
 if [[ -z $dirOption ]]; then workingDir="$(pwd)/"; else

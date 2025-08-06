@@ -52,6 +52,11 @@ cat katana.log | /usr/bin/grep -Ev '^/' | /usr/bin/grep -Ev '^[a-z]+://' | sort 
 /usr/bin/grep -E '^https?://' katana.log | sort -u | anew katana-urls.txt
 cat katana-urls.txt | awk -F/ '{print $1"/"$2"/"$3"/"$4}' | sort -u | anew katana-urls-path-onelevel.txt
 
+if [[ -s target-hostnames.txt ]]; then
+    echo "[*] Getting historical URLs from Web Archive..."
+    cat target-hostnames.txt | gau -v -t 5 | anew -q gau-output-alldomains.log
+fi
+
 # find URLs and download HTTP responses from Wayback Machine
 waymore -i $waybackTarget -oU waymore_urls_${waybackTarget}.txt -oR waymore_responses_${waybackTarget}
 
@@ -61,6 +66,12 @@ xnLinkFinder -i waymore_responses_${waybackTarget} -sf $waybackTarget
 
 # search for secrets
 #jsluice secrets $file | tee jsluice-secrets.txt
+
+urlfinder -d root-domains.txt -o urlfinder-output.txt -all
+cat urlfinder-output.txt | unfurl -u paths | sort | anew urlfinder-paths.txt
+cat urlfinder-output.txt| unfurl -u keys | sort | tee urlfinder-params.txt
+cat urlfinder-output.txt | urless | sort | tee urlfinder-urless-filtered.txt
+cat urlfinder-output.txt | uro --filters vuln | sort | tee urlfinder-uro-vuln.txt
 
 # creating custom wordlist from website content
 cat httpx-valid-urls.txt | while read url; do
