@@ -80,7 +80,7 @@ function subdomainBrute() {
     
     vared -p "Append them to the main target list?[y]" -c mergeBrutedSubs
     if [[ $mergeBrutedSubs = 'y' ]]; then
-    cat ${workingDir}pure-subs.txt ${dnsxOutputDir}dnsx-subs-bruted-resolved-to-a.txt | sort -u | anew -t ${workingDir}target-hostnames.txt;
+    cat ${workingDir}pure-subs.txt ${dnsxOutputDir}dnsx-subs-bruted-resolved-to-a.txt | sort -u | anew -q ${workingDir}target-hostnames.txt;
     fi
 }
 
