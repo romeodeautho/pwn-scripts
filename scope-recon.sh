@@ -28,6 +28,8 @@ while getopts ":d:p:ben" opt; do
 done
 
 currdate=`date '+%d-%m-%Y-%H:%M'`
+new_hosts_filename="new-hosts-$currdate.txt"
+new_hosts_bruted_filename="new-hosts-bruted-$currdate.txt"
 
 ################################################################################################################
 # -------------------------------------------------------Functions---------------------------------------------#
@@ -35,7 +37,7 @@ currdate=`date '+%d-%m-%Y-%H:%M'`
 
 function passive_DNS_recon() {
     # SUBFINDER: find subdomains for root domains
-    cat ${workingDir}root-domains.txt | /home/shyngys/go/bin/subfinder | anew ${workingDir}target-hostnames.txt
+    cat ${workingDir}root-domains.txt | /home/shyngys/go/bin/subfinder | anew ${workingDir}target-hostnames.txt | tee $new_hosts_filename
     # PUNCIA: find subdomains for root domains
     cat ${workingDir}root-domains.txt | while read line; do
     puncia subdomain $line > ${workingDir}puncia-subs-$line.txt;
@@ -43,7 +45,7 @@ function passive_DNS_recon() {
 
     cat ${workingDir}puncia-subs-* | tr -d ', []"' | sed '/^$/d' |\
     grep -E '^([a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]\.)+[a-zA-Z]{2,}(:[0-9]+)?$' |\
-      sort -u | anew -d ${workingDir}target-hostnames.txt
+      sort -u | anew -d ${workingDir}target-hostnames.txt | tee -a $new_hosts_filename
  
     # GITHUB-SUBDOMAINS: search subdomains on Github and validate
     githubToken=`cat /home/shyngys/intel/.token`
@@ -80,7 +82,7 @@ function subdomainBrute() {
     
     vared -p "Append them to the main target list?[y]" -c mergeBrutedSubs
     if [[ $mergeBrutedSubs = 'y' ]]; then
-    cat ${workingDir}pure-subs.txt ${dnsxOutputDir}dnsx-subs-bruted-resolved-to-a.txt | sort -u | anew -q ${workingDir}target-hostnames.txt;
+    cat ${workingDir}pure-subs.txt ${dnsxOutputDir}dnsx-subs-bruted-resolved-to-a.txt | sort -u | anew -q ${workingDir}target-hostnames.txt | tee $new_hosts_bruted_filename;
     fi
 }
 
@@ -156,9 +158,7 @@ function parseNmapOutput() {
 
     # extract domain names associated with each IP address (for vhosts enumeration) and put them in separate files
     [[ ! -d ${workingDir}domains-by-host ]] && mkdir ${workingDir}domains-by-host; cat ${workingDir}ips.txt |\
-    
-    # LOOKS LAME, NEED TO REFACTOR!!!
-    while read -r line; do 
+    while read -r line; do                                          # LOOKS LAME, NEED TO REFACTOR!!!
         domains=`grep $line ${dnsxOutputDir}dnsx-resolve.log | cut -d ' ' -f1`;
         if [[ ! -z ${domains} ]]; then echo "${domains}"; fi | anew -q ${workingDir}domains-by-host/$line-domains.txt;
     done
@@ -192,6 +192,7 @@ function nucleiScan() {
 function httpProbe() {
     # HTTPX: validate and fingerprint http services from domain list
     echo "[*] Fingerprinting applications with httpx..."
+    
     /home/shyngys/go/bin/httpx -l ${workingDir}target-urls-for-probe.txt \
     -td -server -efqdn -cname -cdn -asn -ip -sc -ss -nc -fr -o ${workingDir}httpx.log -oa -srd ${workingDir}httpx-output
     /usr/bin/chromium file://${workingDir}httpx-output/screenshot/screenshot.html
@@ -210,6 +211,7 @@ function httpProbe() {
 function githubDorks () {
     # GITDORKS: Github dork attack
     vared -p "[*] Please enter a target for git gorks search: " -c git_target
+    
     if [[ ! -z ${git_target} ]]; then /usr/bin/gitdorks -target $git_target -nws 20 -ew 3\
     -token $githubToken -gd /home/shyngys/Tools/gitdorks_go/Dorks/medium_dorks.txt | tee ${workingDir}gitdorks-$git_target.log;
     fi

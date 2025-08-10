@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-HELP="This script runs httpx tool to probe running http services. Needs a list of URLS (http(s)://).
+HELP="This script runs httpx tool to probe running http services. Takes a list of http URLs.
     Usage: $0 [-h] [-H] [-C] [-t]
     Options:
       -h show help
