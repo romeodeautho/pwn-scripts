@@ -37,15 +37,15 @@ new_hosts_bruted_filename="new-hosts-bruted-$currdate.txt"
 
 function passive_DNS_recon() {
     # SUBFINDER: find subdomains for root domains
-    cat ${workingDir}root-domains.txt | /home/shyngys/go/bin/subfinder | anew ${workingDir}target-hostnames.txt | tee $new_hosts_filename
+        cat ${workingDir}root-domains.txt | /home/shyngys/go/bin/subfinder | anew ${workingDir}target-hostnames.txt | tee ${workingDir}$new_hosts_filename
+    
     # PUNCIA: find subdomains for root domains
     cat ${workingDir}root-domains.txt | while read line; do
     puncia subdomain $line > ${workingDir}puncia-subs-$line.txt;
     done
-
     cat ${workingDir}puncia-subs-* | tr -d ', []"' | sed '/^$/d' |\
     grep -E '^([a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]\.)+[a-zA-Z]{2,}(:[0-9]+)?$' |\
-      sort -u | anew -d ${workingDir}target-hostnames.txt | tee -a $new_hosts_filename
+      sort -u | anew -d ${workingDir}target-hostnames.txt | tee -a ${workingDir}$new_hosts_filename
  
     # GITHUB-SUBDOMAINS: search subdomains on Github and validate
     githubToken=`cat /home/shyngys/intel/.token`
@@ -57,7 +57,7 @@ function passive_DNS_recon() {
 function subdomainBrute() {
     if ! [ -d ${dnsxOutputDir} ]; then mkdir ${dnsxOutputDir}; fi
     
-    echo "Starting aggressive subdomain enumeration..."
+    echo "Starting active subdomain enumeration..."
     
     # bruteforcing subdomains with NOERROR technique
     dnsx -nc -a -resp -v -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-20000.txt\
@@ -143,7 +143,7 @@ function extendedPortscan() {
 }
 
 function parseNmapOutput() {
-    # FUNCTION NEEDS A GNMAP OUTPUT FILE AS AN ARGUMENT
+    # FUNCTION REQUIRES A .GNMAP FILE AS AN ARGUMENT
     
     echo "[*] Analyzing nmap report. Generating url list for probing..."
     
@@ -199,12 +199,12 @@ function httpProbe() {
 
     # extract valid URLs from httpx log
     awk -F ' ' -e '$2 ~ /404]$/ {print $1}' ${workingDir}httpx.log | grep -v -E '^https://.*:80$' | anew ${workingDir}httpx-404-urls.txt
-    cat ${workingDir}httpx.log | cut -d ' ' -f 1 | grep -v -E '^https://.*:80$' | grep -v -E '^http://.*:443$' | sort -u | anew ${workingDir}httpx-valid-urls.txt
+    cat ${workingDir}httpx.log | cut -d ' ' -f 1 | grep -v -E '^https://.*:80$' | grep -v -E '^http://.*:443$' | sort -u | anew ${workingDir}httpx-valid-urls.txt | tee ${workingDir}httpx-new-valid-urls-${currdate}.txt
     cat ${workingDir}httpx.log | awk -F'[' '{print $1,"["$5,"["$4}' | sort -u | anew ${workingDir}httpx-ip-asn.txt
 
     if [[ -s ${workingDir}httpx-valid-urls.txt ]]; then  
         /home/shyngys/go/bin/gowitness scan file -f ${workingDir}httpx-valid-urls.txt --write-db --write-screenshots --write-jsonl --threads 20 --chrome-proxy http://127.0.0.1:8080
-        cat ${workingDir}httpx-valid-urls.txt | python3 ~/Tools/FavFreak/favfreak.py -o favfreak-output.txt
+        cat ${workingDir}httpx-valid-urls.txt | python3 ~/Tools/FavFreak/favfreak.py -o ${workingDir}favfreak-output.txt
     fi
 }
 
@@ -223,7 +223,7 @@ function githubDorks () {
 # setting up a working directory for the script
 if [[ -z $dirOption ]]; then workingDir="$(pwd)/"; else
     if [[ -d $dirOption ]]; then
-        if [[ $dirOption =~ .*/$ ]]; then workingDir=$dirOption;  
+        if [[ $dirOption =~ /$ ]]; then workingDir=$dirOption;  
         else workingDir="${dirOption}/"; 
         fi
     else echo "Directory does not exist. Check the path."; exit 1
@@ -260,7 +260,7 @@ fi
 
 if ! [ -d ${nmapOutputDir} ]; then mkdir ${nmapOutputDir}; fi
 
-# extract first level domains from wildcard entries
+# extract second level domains from wildcard entries
 grep -E '\*\.' ${workingDir}scope.txt | sed 's/\*\.//g' | anew -q ${workingDir}root-domains.txt
 cat ${workingDir}root-domains.txt | anew -q ${workingDir}target-hostnames.txt 
 
@@ -315,10 +315,10 @@ if [[ -s ${workingDir}target-urls-for-probe.txt ]]; then
     httpProbe
 fi
 
-if [[ -s ${workingDir}target-hostnames.txt ]]; then
-    echo "[*] Getting historical URLs from Web Archive..."
-    cat ${workingDir}target-hostnames.txt | gau -v -t 5 > ${workingDir}gau-output-alldomains.log
-fi
+#if [[ -s ${workingDir}target-hostnames.txt ]]; then
+#    echo "[*] Getting historical URLs from Web Archive..."
+#    cat ${workingDir}target-hostnames.txt | gau -v -t 5 > ${workingDir}gau-output-alldomains.log
+#fi
 
 if [ ! -z $nucleiScanFlag ] && [[ $nucleiScanFlag == 'true' ]]; then
 nucleiScan

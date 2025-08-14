@@ -89,6 +89,14 @@ cat urlfinder-output.txt | uro --filters vuln | sort | tee urlfinder-uro-vuln.tx
 # find URLs and download HTTP responses from Wayback Machine
 waymore -i $waybackTarget -oU waymore_urls_${waybackTarget}.txt -oR waymore_responses_${waybackTarget}
 
+cat waymore_urls_${waybackTarget}.txt | urless | sort | tee waymore-urless-filtered.txt
+cat waymore-urless-filtered.txt | unfurl -u paths | sort | anew waymore-paths.txt
+cat waymore-urless-filtered.txt| unfurl -u keys | sort | tee waymore-params.txt
+cat waymore_urls_${waybackTarget}.txt | uro --filters vuln | sort | tee waymore-uro-vuln.txt
+
+cat gau-urless-filtered.txt urlfinder-urless-filtered.txt | awk -F/ '{print $1"/"$2"/"$3"/"$4}' \
+| grep -E '^http' | sort -u | tee urls-paths-level-1.txt
+
 #parse downloaded resposes and JS files for links
 xnLinkFinder -i waymore_responses_${waybackTarget} -sf $waybackTarget
 

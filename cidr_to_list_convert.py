@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 """
-This scripts converts a list of IP address blocks in CIDR notation to a plain list of all IPs
+This scripts converts a list of IP address blocks in CIDR notation to a simple list of IP addresses
 """
 
 import sys, ipaddress
