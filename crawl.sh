@@ -31,6 +31,8 @@ while getopts ":aH:C:t:h" opt; do
       ;;
       t) waybackTarget=$OPTARG
       ;;
+      f) targetFile=$OPTARG
+      ;;
       "?") echo "Invalid option: '$OPTARG'.\nTry '$0 -h' for usage information." >&2
       exit 1
       ;;

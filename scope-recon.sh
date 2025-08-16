@@ -262,7 +262,7 @@ if ! [ -d ${nmapOutputDir} ]; then mkdir ${nmapOutputDir}; fi
 
 # extract second level domains from wildcard entries
 grep -E '\*\.' ${workingDir}scope.txt | sed 's/\*\.//g' | anew -q ${workingDir}root-domains.txt
-cat ${workingDir}root-domains.txt | anew -q ${workingDir}target-hostnames.txt 
+cat ${workingDir}root-domains.txt | anew -q ${workingDir}target-hostnames.txt
 
 # extract non-wildcard domain entries without scheme
 cat ${workingDir}scope.txt | grep -v '*' | grep -Ev '^https?' | \
