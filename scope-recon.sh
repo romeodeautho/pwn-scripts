@@ -37,7 +37,7 @@ new_hosts_bruted_filename="new-hosts-bruted-$currdate.txt"
 
 function passive_DNS_recon() {
     # SUBFINDER: find subdomains for root domains
-        cat ${workingDir}root-domains.txt | /home/shyngys/go/bin/subfinder | anew ${workingDir}target-hostnames.txt | tee ${workingDir}$new_hosts_filename
+        cat ${workingDir}root-domains.txt | subfinder | anew ${workingDir}target-hostnames.txt | tee ${workingDir}$new_hosts_filename
     
     # PUNCIA: find subdomains for root domains
     cat ${workingDir}root-domains.txt | while read line; do
@@ -193,7 +193,7 @@ function httpProbe() {
     # HTTPX: validate and fingerprint http services from domain list
     echo "[*] Fingerprinting applications with httpx..."
     
-    /home/shyngys/go/bin/httpx -l ${workingDir}target-urls-for-probe.txt \
+    /home/shyngys/.pdtm/go/bin/httpx -l ${workingDir}target-urls-for-probe.txt \
     -td -server -efqdn -cname -cdn -asn -ip -sc -ss -nc -fr -o ${workingDir}httpx.log -oa -srd ${workingDir}httpx-output
     /usr/bin/chromium file://${workingDir}httpx-output/screenshot/screenshot.html
 
@@ -204,7 +204,9 @@ function httpProbe() {
 
     if [[ -s ${workingDir}httpx-valid-urls.txt ]]; then  
         /home/shyngys/go/bin/gowitness scan file -f ${workingDir}httpx-valid-urls.txt --write-db --write-screenshots --write-jsonl --threads 20 --chrome-proxy http://127.0.0.1:8080
+        source ${HOME}/Tools/FavFreak/venv/bin/activate
         cat ${workingDir}httpx-valid-urls.txt | python3 ~/Tools/FavFreak/favfreak.py -o ${workingDir}favfreak-output.txt
+        deactivate
     fi
 }
 
@@ -276,7 +278,7 @@ cat ${workingDir}scope.txt | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+[:/0-9]*$' 
 cat ${workingDir}ip-scope.txt | anew -q ${workingDir}ips.txt
 
 grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]{1,2}$' ${workingDir}scope.txt | anew -q ${workingDir}cidr-scope.txt
-/usr/bin/python3 /home/shyngys/scripts/cidr_to_list_convert.py ${workingDir}cidr-scope.txt
+/usr/bin/python3 /home/shyngys/pwn-scripts/cidr_to_list_convert.py ${workingDir}cidr-scope.txt
 cat ${workingDir}ip_list.txt | anew -q ${workingDir}ips.txt
 
 # make a regex version of scope list for BurpSuite
