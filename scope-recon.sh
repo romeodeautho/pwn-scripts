@@ -203,7 +203,7 @@ function httpProbe() {
     cat ${workingDir}httpx.log | awk -F'[' '{print $1,"["$5,"["$4}' | sort -u | anew ${workingDir}httpx-ip-asn.txt
 
     if [[ -s ${workingDir}httpx-valid-urls.txt ]]; then  
-        /home/shyngys/go/bin/gowitness scan file -f ${workingDir}httpx-valid-urls.txt --write-db --write-screenshots --write-jsonl --threads 20 --chrome-proxy http://127.0.0.1:8080
+        /home/shyngys/go/bin/gowitness scan file -f ${workingDir}httpx-valid-urls.txt --write-db --write-screenshots --write-jsonl --threads 20
         source ${HOME}/Tools/FavFreak/venv/bin/activate
         cat ${workingDir}httpx-valid-urls.txt | python3 ~/Tools/FavFreak/favfreak.py -o ${workingDir}favfreak-output.txt
         deactivate
@@ -272,6 +272,7 @@ grep -Ev '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]{1,2}$' | anew -q ${workingDir}ta
 
 # extract HTTP URLs
 cat ${workingDir}scope.txt | grep -Ev '\*\.' | grep -E '^https?://' | anew -q ${workingDir}target-urls-for-probe.txt
+cat ${workingDir}scope.txt | grep -E '^https?' | awk -F '//' {'print $2'} | anew -q ${workingDir}target-hostnames.txt
 
 # extract only IP addresses
 cat ${workingDir}scope.txt | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+[:/0-9]*$' | anew -q ${workingDir}ip-scope.txt
@@ -282,8 +283,8 @@ grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]{1,2}$' ${workingDir}scope.txt | a
 cat ${workingDir}ip_list.txt | anew -q ${workingDir}ips.txt
 
 # make a regex version of scope list for BurpSuite
-sed -e 's/\./\\./g' -e 's/\*\\\./\(.*\\.\)?/' -re 's/(^[^\(])/^\1/' \
--e 's/$/\(:[0-9]+\)?$/'  ${workingDir}scope.txt | anew -q ${workingDir}scope-regex.txt
+sed -e 's/^https\?:\/\///g' -e 's/\./\\./g' -e 's/\*\\\./\(.*\\.\)?/' -re 's/(^[^\(])/^\1/' \
+-e 's/$/\(:[0-9]+\)?$/' -e 's/^https?//'  ${workingDir}scope.txt | anew -q ${workingDir}scope-regex.txt
 
 # passively enumerate subdomains for root domains
 if [[ -s ${workingDir}root-domains.txt ]]; then
@@ -310,6 +311,7 @@ fi
 # create list of URLs for http probes
 if [[ -s ${nmapOutputDir}${nmapOutputBasename}.gnmap ]]; then
     parseNmapOutput ${nmapOutputDir}${nmapOutputBasename}.gnmap
+    parseNmapOutput ${nmapOutputDir}${smapOutputBasename}.gnmap
 fi
 
 # run http probes against a target list

@@ -79,7 +79,7 @@ fi
 
 if [[ $passive == '1' ]]; then
     echo "[*] Getting historical URLs from Web Archive..."
-    cat root-domains.txt | /home/shyngys/go/bin/gau --verbose --threads 5 | anew -q gau-output-alldomains.log
+    cat target-hostnames.txt | /home/shyngys/go/bin/gau --verbose --threads 5 | anew -q gau-output-alldomains.log
     cat gau-output-alldomains.log | urless | sort | anew gau-urless-filtered.txt
     cat gau-urless-filtered.txt | unfurl -u paths | sort | anew gau-paths.txt
     cat gau-urless-filtered.txt| unfurl -u keys | sort | anew gau-params.txt
@@ -89,7 +89,7 @@ if [[ $passive == '1' ]]; then
     #jsluice urls $file | jq .url | sort -u | tr -d '"' | tee jsluice-urls.txt
     #jsluice secrets $file | tee jsluice-secrets.txt
 
-    urlfinder -d root-domains.txt -o urlfinder-output.txt -all
+    urlfinder -d target-hostnames.txt -o urlfinder-output.txt -all
     cat urlfinder-output.txt | urless | sort | tee urlfinder-urless-filtered.txt
     cat urlfinder-urless-filtered.txt | unfurl -u paths | sort | anew urlfinder-paths.txt
     cat urlfinder-urless-filtered.txt| unfurl -u keys | sort | tee urlfinder-params.txt

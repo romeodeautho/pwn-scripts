@@ -86,7 +86,7 @@ for ip in ips:
 
 #print(hostnames_with_ports)
 try:
-    with open("hostnames-with-ports-raw-python.txt", "w") as file_raw:
+    with open("hostnames-with-ports-raw-python.txt", "a") as file_raw:
         for hostname in hostnames_with_ports:
             file_raw.write(hostname + '\n')
 except IOError as e:
